@@ -1,5 +1,6 @@
 package com.sky.controller.admin;
 
+import com.sky.constant.MessageConstant;
 import com.sky.result.Result;
 import com.sky.utils.QiniuUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +43,7 @@ public class CommonController {
             return Result.success(url);
         } catch (Exception e) {
             log.error("文件上传失败", e);
-            return Result.error("文件上传失败，请稍后重试");
+            return Result.error(MessageConstant.UPLOAD_FAILED);
         }
     }
 
