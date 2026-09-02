@@ -39,7 +39,7 @@ public class DishServiceImpl implements DishService {
     @Transactional
     public Result saveWithFlavor(DishDTO dishDTO) {
         Dish dish = new Dish();
-        BeanUtils.copyProperties(dishDTO,dish);
+        BeanUtils.copyProperties(dishDTO, dish);
         // 保存菜品
         dishMapper.insert(dish);
         // 菜品id
@@ -47,9 +47,9 @@ public class DishServiceImpl implements DishService {
         // 保存菜品口味
         List<DishFlavor> flavors = dishDTO.getFlavors();
 
-        if(flavors!=null&& !flavors.isEmpty()){
+        if (flavors != null && !flavors.isEmpty()) {
             // 菜品口味id
-            flavors.forEach(dishFlavor->dishFlavor.setDishId(dishId));
+            flavors.forEach(dishFlavor -> dishFlavor.setDishId(dishId));
             dishFlavorMapper.insertBatch(flavors);
         }
         return Result.success();
@@ -57,23 +57,23 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public PageResult pageQuery(DishPageQueryDTO dishPageQueryDTO) {
-        PageHelper.startPage(dishPageQueryDTO.getPage(),dishPageQueryDTO.getPageSize());
+        PageHelper.startPage(dishPageQueryDTO.getPage(), dishPageQueryDTO.getPageSize());
         Page<DishVO> page = dishMapper.pageQuery(dishPageQueryDTO);
-        return new PageResult(page.getTotal(),page.getResult());
+        return new PageResult(page.getTotal(), page.getResult());
     }
 
     @Override
     public void deleteBatch(List<Long> ids) {
         //起售中菜品不能删除
-        for(Long id:ids){
-            Dish dish=dishMapper.getById(id);
-            if(dish.getStatus() == StatusConstant.ENABLE){
+        for (Long id : ids) {
+            Dish dish = dishMapper.getById(id);
+            if (dish.getStatus() == StatusConstant.ENABLE) {
                 throw new DeletionNotAllowedException(MessageConstant.DISH_ON_SALE);
             }
         }
         //关联套餐不能删除
         List<Long> setmealIds = setmealDishMapper.getSetmealIDsByDishIds(ids);
-        if(setmealIds!=null&&setmealIds.size()>0){
+        if (setmealIds != null && setmealIds.size() > 0) {
             throw new DeletionNotAllowedException(MessageConstant.DISH_BE_RELATED_BY_SETMEAL);
         }
         //删除菜品
@@ -93,7 +93,7 @@ public class DishServiceImpl implements DishService {
 
         List<DishFlavor> flavors = dishFlavorMapper.selectByDishId(id);
         DishVO dishVO = new DishVO();
-        BeanUtils.copyProperties(dish,dishVO);
+        BeanUtils.copyProperties(dish, dishVO);
         dishVO.setFlavors(flavors);
         return dishVO;
     }
@@ -101,15 +101,24 @@ public class DishServiceImpl implements DishService {
     @Override
     public void updateWithFlavor(DishDTO dishDTO) {
         Dish dish = new Dish();
-        BeanUtils.copyProperties(dishDTO,dish);
+        BeanUtils.copyProperties(dishDTO, dish);
         dishMapper.update(dish);
         // 更新菜品口味
         dishFlavorMapper.deleteByDishId(dishDTO.getId());
         List<DishFlavor> flavors = dishDTO.getFlavors();
-        if(flavors!=null&& !flavors.isEmpty()){
+        if (flavors != null && !flavors.isEmpty()) {
             // 菜品口味id
-            flavors.forEach(dishFlavor->dishFlavor.setDishId(dishDTO.getId()));
+            flavors.forEach(dishFlavor -> dishFlavor.setDishId(dishDTO.getId()));
             dishFlavorMapper.insertBatch(flavors);
         }
+    }
+
+    @Override
+    public List<Dish> list(Long categoryId) {
+        Dish dish = Dish.builder()
+                .categoryId(categoryId)
+                .status(StatusConstant.ENABLE)
+                .build();
+        return dishMapper.list(dish);
     }
 }
