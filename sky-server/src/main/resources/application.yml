@@ -35,9 +35,16 @@ sky:
     admin-secret-key: itcast
     admin-ttl: 7200000
     admin-token-name: token
+    user-secret-key: itheima
+    user-ttl: 7200000
+    user-token-name: authentication
   github:
     token: ${sky.github.token}
     owner: ${sky.github.owner}
     repo: ${sky.github.repo}
     branch: ${sky.github.branch}
     path: ${sky.github.path}
+
+  wechat:
+    appid: ${sky.wechat.appid}
+    secret: ${sky.wechat.secret}
