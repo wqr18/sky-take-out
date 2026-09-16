@@ -8,7 +8,6 @@ import com.sky.service.OrderService;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
-import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -64,6 +63,13 @@ public class OrderController {
     @PostMapping("/repetition/{id}")
     public Result repetition(@PathVariable Long id) {
         orderService.repetition(id);
+        return Result.success();
+    }
+
+    // 催单提醒
+    @GetMapping("/reminder/{id}")
+    public Result reminder(@PathVariable Long id) {
+        orderService.reminder(id);
         return Result.success();
     }
 }
