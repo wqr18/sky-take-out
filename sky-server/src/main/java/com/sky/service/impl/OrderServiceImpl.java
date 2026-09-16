@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
@@ -126,8 +127,12 @@ public class OrderServiceImpl implements OrderService {
         orders.setStatus(Orders.TO_BE_CONFIRMED);
         orders.setCheckoutTime(LocalDateTime.now());
         orderMapper.update(orders);
-        //发送消息给客户端
-
+        //发送消息给客户端（商家端来单提醒）
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("type", 1);
+        jsonObject.put("orderId", orders.getId());
+        jsonObject.put("content", "订单号：" + orders.getNumber());
+        webSocketServer.sendToAllClient(jsonObject.toJSONString());
 
         return OrderPaymentVO.builder()
                 .nonceStr(UUID.randomUUID().toString().replace("-", ""))
