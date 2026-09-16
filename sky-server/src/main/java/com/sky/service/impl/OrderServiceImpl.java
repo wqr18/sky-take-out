@@ -18,9 +18,12 @@ import com.sky.mapper.AddressBookMapper;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShopCartMapper;
+import com.sky.properties.AmapProperties;
+import com.sky.properties.ShopProperties;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.service.ShoppingCartService;
+import com.sky.utils.AmapUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
@@ -52,6 +55,12 @@ public class OrderServiceImpl implements OrderService {
     private WebSocketServer webSocketServer;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private AmapProperties amapProperties;
+    @Autowired
+    private ShopProperties shopProperties;
+
+    private volatile double[] shopLngLat;
 
     @Override
     public OrderSubmitVO submit(OrdersSubmitDTO ordersSubmitDTO) {
@@ -61,6 +70,8 @@ public class OrderServiceImpl implements OrderService {
         if (addressBook == null) {
             throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
         }
+        //2.校验收货地址是否超出配送范围
+        checkDeliveryRange(addressBook);
         ShoppingCart shoppingCart = new ShoppingCart();
         Long userId = BaseContext.getCurrentId();
         shoppingCart.setUserId(userId);
@@ -414,5 +425,43 @@ public class OrderServiceImpl implements OrderService {
         orders.setDeliveryTime(LocalDateTime.now());
 
         orderMapper.update(orders);
+    }
+
+    /**
+     * 校验收货地址是否超出配送范围
+     */
+    private void checkDeliveryRange(AddressBook addressBook) {
+        double[] shopLngLat = getShopLngLat();
+        if (shopLngLat == null) {
+            return;
+        }
+
+        String userAddress = addressBook.getProvinceName()
+                + addressBook.getCityName()
+                + addressBook.getDistrictName()
+                + addressBook.getDetail();
+        double[] userLngLat = AmapUtil.geocode(userAddress, amapProperties.getKey());
+        if (userLngLat == null) {
+            return;
+        }
+
+        double distance = AmapUtil.getDistance(shopLngLat[0], shopLngLat[1], userLngLat[0], userLngLat[1]);
+        if (distance > shopProperties.getDeliveryRangeKm() * 1000) {
+            throw new OrderBusinessException("收货地址超出配送范围");
+        }
+    }
+
+    /**
+     * 获取店铺经纬度（带缓存，店铺地址固定，只需解析一次）
+     */
+    private double[] getShopLngLat() {
+        if (shopLngLat == null) {
+            synchronized (this) {
+                if (shopLngLat == null) {
+                    shopLngLat = AmapUtil.geocode(shopProperties.getAddress(), amapProperties.getKey());
+                }
+            }
+        }
+        return shopLngLat;
     }
 }
