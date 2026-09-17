@@ -29,4 +29,6 @@ public interface OrderMapper {
 
     @Select("select count(id) from orders where status = #{status}")
     Integer countStatus(Integer status);
+
+    Double sumByTime(LocalDateTime beginTime, LocalDateTime endTime, Integer status);
 }
