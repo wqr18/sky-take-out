@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface OrderMapper {
@@ -31,4 +32,9 @@ public interface OrderMapper {
     Integer countStatus(Integer status);
 
     Double sumByTime(LocalDateTime beginTime, LocalDateTime endTime, Integer status);
+
+    /**
+     * 按日期分组查询营业额（一次查出范围内所有日期）
+     */
+    List<Map<String, Object>> sumByTimeBetween(LocalDateTime beginTime, LocalDateTime endTime, Integer status);
 }

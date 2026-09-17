@@ -19,4 +19,16 @@
                             </if>
                         </where>
     </select>
+
+    <select id="countNewUserByDay" resultType="map">
+        select DATE(create_time) as date, count(*) as count
+        from user
+        where create_time &gt;= #{beginTime}
+          and create_time &lt;= #{endTime}
+        group by DATE(create_time)
+    </select>
+
+    <select id="countUserBefore" resultType="java.lang.Integer">
+        select count(*) from user where create_time &lt; #{beginTime}
+    </select>
 </mapper>

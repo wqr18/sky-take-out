@@ -84,4 +84,13 @@
                                </if>
                            </where>
     </select>
+
+    <select id="sumByTimeBetween" resultType="map">
+        select DATE(order_time) as date, sum(amount) as turnover
+        from orders
+        where order_time &gt;= #{beginTime}
+          and order_time &lt;= #{endTime}
+          and status = #{status}
+        group by DATE(order_time)
+    </select>
 </mapper>
