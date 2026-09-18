@@ -88,9 +88,34 @@
     <select id="sumByTimeBetween" resultType="map">
         select DATE(order_time) as date, sum(amount) as turnover
         from orders
-        where order_time &gt;= #{beginTime}
-          and order_time &lt;= #{endTime}
-          and status = #{status}
+        <where>
+            <if test="beginTime != null">
+                and order_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null">
+                and order_time &lt;= #{endTime}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+        group by DATE(order_time)
+    </select>
+
+    <select id="countOrderByTimeBetween" resultType="map">
+        select DATE(order_time) as date, count(id) as orderCount
+        from orders
+        <where>
+            <if test="beginTime != null">
+                and order_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null">
+                and order_time &lt;= #{endTime}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
         group by DATE(order_time)
     </select>
 </mapper>

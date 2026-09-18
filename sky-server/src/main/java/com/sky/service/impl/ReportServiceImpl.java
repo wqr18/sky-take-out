@@ -4,6 +4,7 @@ import com.sky.entity.Orders;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
+import com.sky.vo.OrderReportVO;
 import com.sky.vo.TurnoverReportVO;
 import com.sky.vo.UserReportVO;
 import org.apache.commons.lang.StringUtils;
@@ -24,6 +25,7 @@ public class ReportServiceImpl implements ReportService {
     private OrderMapper orderMapper;
     @Autowired
     private UserMapper userMapper;
+
     @Override
     public TurnoverReportVO getTurnoverStatistics(LocalDate begin, LocalDate end) {
         List<LocalDate> dateList = new ArrayList<>();
@@ -59,9 +61,9 @@ public class ReportServiceImpl implements ReportService {
 
 
     /**
+     * @return
      * @Param("begin")
      * @Param("end")
-     * @return
      */
     @Override
     public UserReportVO getUserStatistics(LocalDate begin, LocalDate end) {
@@ -99,6 +101,62 @@ public class ReportServiceImpl implements ReportService {
                 .dateList(StringUtils.join(dateList, ","))
                 .totalUserList(StringUtils.join(totalUserList, ","))
                 .newUserList(StringUtils.join(newUserList, ","))
+                .build();
+    }
+
+    @Override
+    public OrderReportVO getOrdersStatistics(LocalDate begin, LocalDate end) {
+        List<LocalDate> dateList = new ArrayList<>();
+        for (LocalDate date = begin; !date.isAfter(end); date = date.plusDays(1)) {
+            dateList.add(date);
+        }
+
+        LocalDateTime beginTime = LocalDateTime.of(begin, LocalTime.MIN);
+        LocalDateTime endTime = LocalDateTime.of(end, LocalTime.MAX);
+
+        // 一次查询所有日期的订单数，避免 N+1
+        List<Map<String, Object>> all = orderMapper.countOrderByTimeBetween(beginTime, endTime, null);
+        List<Map<String,Object>> valid = orderMapper.countOrderByTimeBetween(beginTime, endTime, Orders.COMPLETED);
+        Map<LocalDate, Integer> orderMap = new HashMap<>();
+        Map<LocalDate, Integer> validMap = new HashMap<>();
+        for (Map<String, Object> row : all) {
+            LocalDate date = ((java.sql.Date) row.get("date")).toLocalDate();
+            orderMap.put(date, ((Number) row.get("orderCount")).intValue());
+        }
+        for (Map<String, Object> row : valid) {
+            LocalDate date = ((java.sql.Date) row.get("date")).toLocalDate();
+            validMap.put(date, ((Number) row.get("orderCount")).intValue());
+        }
+
+        List<Integer> orderCountList = new ArrayList<>();
+        List<Integer> validOrderCountList = new ArrayList<>();
+        for (LocalDate date : dateList) {
+            orderCountList.add(orderMap.getOrDefault(date, 0));
+            validOrderCountList.add(validMap.getOrDefault(date, 0));
+        }
+        int totalOrderCount = 0;
+        int validOrderCount = 0;
+        double orderCompletionRate = 0.0;
+        // 遍历日期列表，分别填充两个列表，同时累加总数
+        for (LocalDate date : dateList) {
+            int dayTotal = orderMap.getOrDefault(date, 0);   // 无订单 → 0，不会 null
+            int dayValid = validMap.getOrDefault(date, 0);
+            orderCountList.add(dayTotal);
+            validOrderCountList.add(dayValid);
+            totalOrderCount += dayTotal;      // 都是 int 原始类型，不会 NPE
+            validOrderCount += dayValid;
+        }
+
+        // 完成率 = 有效订单数 / 总订单数（防除零）
+        orderCompletionRate = totalOrderCount == 0 ? 0.0 : (double) validOrderCount / totalOrderCount;
+        return OrderReportVO
+                .builder()
+                .dateList(StringUtils.join(dateList, ","))
+                .orderCountList(StringUtils.join(orderCountList, ","))
+                .validOrderCountList(StringUtils.join(validOrderCountList, ","))
+                .totalOrderCount(totalOrderCount)
+                .validOrderCount(validOrderCount)
+                .orderCompletionRate(orderCompletionRate)
                 .build();
     }
 }

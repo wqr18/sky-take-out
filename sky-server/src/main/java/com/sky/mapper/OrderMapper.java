@@ -37,4 +37,6 @@ public interface OrderMapper {
      * 按日期分组查询营业额（一次查出范围内所有日期）
      */
     List<Map<String, Object>> sumByTimeBetween(LocalDateTime beginTime, LocalDateTime endTime, Integer status);
+
+    List<Map<String, Object>> countOrderByTimeBetween(LocalDateTime beginTime, LocalDateTime endTime, Integer status);
 }
