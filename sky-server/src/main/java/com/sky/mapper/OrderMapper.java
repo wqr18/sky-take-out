@@ -32,6 +32,20 @@ public interface OrderMapper {
     @Select("select count(id) from orders where status = #{status}")
     Integer countStatus(Integer status);
 
+    /**
+     * 根据条件统计订单数量
+     * @param map (begin, end, status)
+     * @return
+     */
+    Integer countByMap(Map map);
+
+    /**
+     * 根据条件统计营业额
+     * @param map (begin, end, status)
+     * @return
+     */
+    Double sumByMap(Map map);
+
     Double sumByTime(LocalDateTime beginTime, LocalDateTime endTime, Integer status);
 
     /**

@@ -8,14 +8,14 @@
         values (#{openid}, #{createTime})
     </insert>
 
-    <select id="countUser" resultType="java.lang.Integer">
+    <select id="countByMap" resultType="java.lang.Integer">
         select count(*) from user
                         <where>
-                            <if test="beginTime != null">
-                                and create_time &gt;= #{beginTime}
+                            <if test="begin != null">
+                                and create_time &gt;= #{begin}
                             </if>
-                            <if test="endTime != null">
-                                and create_time &lt;= #{endTime}
+                            <if test="end != null">
+                                and create_time &lt;= #{end}
                             </if>
                         </where>
     </select>

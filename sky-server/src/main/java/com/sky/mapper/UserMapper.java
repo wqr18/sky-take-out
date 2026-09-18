@@ -16,7 +16,7 @@ public interface UserMapper {
 
     void insert(User user);
 
-    Integer countUser(Map map);
+    Integer countByMap(Map map);
 
     /**
      * 按日期分组统计新增用户数
