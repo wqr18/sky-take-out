@@ -163,4 +163,13 @@
         order by number desc
         limit 0,10
     </select>
+
+    <select id="countByStatuses" resultType="map">
+        select status, count(id) as count from orders
+        where status in
+        <foreach collection="statusList" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+        group by status
+    </select>
 </mapper>

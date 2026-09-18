@@ -54,8 +54,6 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private WebSocketServer webSocketServer;
     @Autowired
-    private OrderService orderService;
-    @Autowired
     private AmapProperties amapProperties;
     @Autowired
     private ShopProperties shopProperties;
@@ -63,6 +61,7 @@ public class OrderServiceImpl implements OrderService {
     private volatile double[] shopLngLat;
 
     @Override
+    @Transactional
     public OrderSubmitVO submit(OrdersSubmitDTO ordersSubmitDTO) {
         //处理异常
         //1.判断地址簿是否存在
@@ -151,15 +150,14 @@ public class OrderServiceImpl implements OrderService {
         Page<Orders> page = orderMapper.pageQuery(ordersPageQueryDTO);
         List<OrderVO> list = new ArrayList<>();
         if (page != null && page.getTotal() > 0) {
+            List<Long> orderIds = page.stream().map(Orders::getId).collect(Collectors.toList());
+            Map<Long, List<OrderDetail>> detailMap = orderDetailMapper.getByOrderIds(orderIds)
+                    .stream().collect(Collectors.groupingBy(OrderDetail::getOrderId));
             for (Orders orders : page) {
-                Long ordersId = orders.getId();
-                List<OrderDetail> orderDetails = orderDetailMapper.getByOrderId(ordersId);
                 OrderVO orderVO = new OrderVO();
                 BeanUtils.copyProperties(orders, orderVO);
-                orderVO.setOrderDetailList(orderDetails);
-
+                orderVO.setOrderDetailList(detailMap.getOrDefault(orders.getId(), Collections.emptyList()));
                 list.add(orderVO);
-
             }
         }
         return new PageResult(page.getTotal(), list);
@@ -246,18 +244,17 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private List<OrderVO> getOrderVOList(Page<Orders> page) {
-        // 需要返回订单菜品信息，自定义OrderVO响应结果
         List<OrderVO> orderVOList = new ArrayList<>();
 
         List<Orders> ordersList = page.getResult();
         if (!CollectionUtils.isEmpty(ordersList)) {
+            List<Long> orderIds = ordersList.stream().map(Orders::getId).collect(Collectors.toList());
+            Map<Long, List<OrderDetail>> detailMap = orderDetailMapper.getByOrderIds(orderIds)
+                    .stream().collect(Collectors.groupingBy(OrderDetail::getOrderId));
             for (Orders orders : ordersList) {
-                // 将共同字段复制到OrderVO
                 OrderVO orderVO = new OrderVO();
                 BeanUtils.copyProperties(orders, orderVO);
-                String orderDishes = getOrderDishesStr(orders);
-
-                // 将订单菜品信息封装到orderVO中，并添加到orderVOList
+                String orderDishes = getOrderDishesStr(detailMap.getOrDefault(orders.getId(), Collections.emptyList()));
                 orderVO.setOrderDishes(orderDishes);
                 orderVOList.add(orderVO);
             }
@@ -266,23 +263,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * 根据订单id获取菜品信息字符串
+     * 根据订单详情列表拼接菜品信息字符串
      *
-     * @param orders
+     * @param orderDetailList
      * @return
      */
-    private String getOrderDishesStr(Orders orders) {
-        // 查询订单菜品详情信息（订单中的菜品和数量）
-        List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(orders.getId());
-
-        // 将每一条订单菜品信息拼接为字符串（格式：宫保鸡丁*3；）
-        List<String> orderDishList = orderDetailList.stream().map(x -> {
-            String orderDish = x.getName() + "*" + x.getNumber() + ";";
-            return orderDish;
-        }).collect(Collectors.toList());
-
-        // 将该订单对应的所有菜品信息拼接在一起
-        return String.join("", orderDishList);
+    private String getOrderDishesStr(List<OrderDetail> orderDetailList) {
+        return orderDetailList.stream()
+                .map(x -> x.getName() + "*" + x.getNumber() + ";")
+                .collect(Collectors.joining());
     }
 
 
@@ -292,16 +281,20 @@ public class OrderServiceImpl implements OrderService {
      * @return
      */
     public OrderStatisticsVO statistics() {
-        // 根据状态，分别查询出待接单、待派送、派送中的订单数量
-        Integer toBeConfirmed = orderMapper.countStatus(Orders.TO_BE_CONFIRMED);
-        Integer confirmed = orderMapper.countStatus(Orders.CONFIRMED);
-        Integer deliveryInProgress = orderMapper.countStatus(Orders.DELIVERY_IN_PROGRESS);
+        List<Integer> statusList = Arrays.asList(Orders.TO_BE_CONFIRMED, Orders.CONFIRMED, Orders.DELIVERY_IN_PROGRESS);
+        List<Map<String, Object>> result = orderMapper.countByStatuses(statusList);
 
-        // 将查询出的数据封装到orderStatisticsVO中响应
+        Map<Integer, Integer> countMap = new HashMap<>();
+        for (Map<String, Object> map : result) {
+            Integer status = ((Number) map.get("status")).intValue();
+            Integer count = ((Number) map.get("count")).intValue();
+            countMap.put(status, count);
+        }
+
         OrderStatisticsVO orderStatisticsVO = new OrderStatisticsVO();
-        orderStatisticsVO.setToBeConfirmed(toBeConfirmed);
-        orderStatisticsVO.setConfirmed(confirmed);
-        orderStatisticsVO.setDeliveryInProgress(deliveryInProgress);
+        orderStatisticsVO.setToBeConfirmed(countMap.getOrDefault(Orders.TO_BE_CONFIRMED, 0));
+        orderStatisticsVO.setConfirmed(countMap.getOrDefault(Orders.CONFIRMED, 0));
+        orderStatisticsVO.setDeliveryInProgress(countMap.getOrDefault(Orders.DELIVERY_IN_PROGRESS, 0));
         return orderStatisticsVO;
     }
 

@@ -13,4 +13,6 @@ public interface OrderDetailMapper {
 
     @Select("select * from order_detail where order_id = #{orderId}")
     List<OrderDetail> getByOrderId(Long ordersId);
+
+    List<OrderDetail> getByOrderIds(@Param("orderIds") List<Long> orderIds);
 }
