@@ -80,7 +80,8 @@ public class ReportServiceImpl implements ReportService {
         Map<LocalDate, Integer> newUserMap = new HashMap<>();
         for (Map<String, Object> row : rows) {
             LocalDate date = ((java.sql.Date) row.get("date")).toLocalDate();
-            newUserMap.put(date, ((Number) row.get("count")).intValue());
+            Number countNum = (Number) row.get("count");
+            newUserMap.put(date, countNum == null ? 0 : countNum.intValue());
         }
 
         // 起始日期之前的总用户数（基线），后续每天累加即可
@@ -114,41 +115,38 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime beginTime = LocalDateTime.of(begin, LocalTime.MIN);
         LocalDateTime endTime = LocalDateTime.of(end, LocalTime.MAX);
 
-        // 一次查询所有日期的订单数，避免 N+1
-        List<Map<String, Object>> all = orderMapper.countOrderByTimeBetween(beginTime, endTime, null);
-        List<Map<String,Object>> valid = orderMapper.countOrderByTimeBetween(beginTime, endTime, Orders.COMPLETED);
-        Map<LocalDate, Integer> orderMap = new HashMap<>();
-        Map<LocalDate, Integer> validMap = new HashMap<>();
-        for (Map<String, Object> row : all) {
+        // 查询每日总订单数（不传状态，查全部）和每日有效订单数（已完成）
+        List<Map<String, Object>> allRows = orderMapper.countOrderByTimeBetween(beginTime, endTime, null);
+        List<Map<String, Object>> validRows = orderMapper.countOrderByTimeBetween(beginTime, endTime, Orders.COMPLETED);
+        Map<LocalDate, Integer> totalOrderMap = new HashMap<>();
+        Map<LocalDate, Integer> validOrderMap = new HashMap<>();
+        for (Map<String, Object> row : allRows) {
             LocalDate date = ((java.sql.Date) row.get("date")).toLocalDate();
-            orderMap.put(date, ((Number) row.get("orderCount")).intValue());
+            Number countNum = (Number) row.get("orderCount");
+            totalOrderMap.put(date, countNum == null ? 0 : countNum.intValue());
         }
-        for (Map<String, Object> row : valid) {
+        for (Map<String, Object> row : validRows) {
             LocalDate date = ((java.sql.Date) row.get("date")).toLocalDate();
-            validMap.put(date, ((Number) row.get("orderCount")).intValue());
+            Number countNum = (Number) row.get("orderCount");
+            validOrderMap.put(date, countNum == null ? 0 : countNum.intValue());
         }
 
         List<Integer> orderCountList = new ArrayList<>();
         List<Integer> validOrderCountList = new ArrayList<>();
-        for (LocalDate date : dateList) {
-            orderCountList.add(orderMap.getOrDefault(date, 0));
-            validOrderCountList.add(validMap.getOrDefault(date, 0));
-        }
         int totalOrderCount = 0;
         int validOrderCount = 0;
-        double orderCompletionRate = 0.0;
-        // 遍历日期列表，分别填充两个列表，同时累加总数
+        // 遍历日期列表，填充两个列表并累加总数
         for (LocalDate date : dateList) {
-            int dayTotal = orderMap.getOrDefault(date, 0);   // 无订单 → 0，不会 null
-            int dayValid = validMap.getOrDefault(date, 0);
+            int dayTotal = totalOrderMap.getOrDefault(date, 0);
+            int dayValid = validOrderMap.getOrDefault(date, 0);
             orderCountList.add(dayTotal);
             validOrderCountList.add(dayValid);
-            totalOrderCount += dayTotal;      // 都是 int 原始类型，不会 NPE
+            totalOrderCount += dayTotal;
             validOrderCount += dayValid;
         }
 
         // 完成率 = 有效订单数 / 总订单数（防除零）
-        orderCompletionRate = totalOrderCount == 0 ? 0.0 : (double) validOrderCount / totalOrderCount;
+        double orderCompletionRate = totalOrderCount == 0 ? 0.0 : (double) validOrderCount / totalOrderCount;
         return OrderReportVO
                 .builder()
                 .dateList(StringUtils.join(dateList, ","))
